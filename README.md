@@ -132,10 +132,11 @@
 ## 5. Basic Steps to Run
 
 1. **Set Up**  
-   - Ensure you have Python 3.7+ and install any dependencies (e.g., `numpy`, `matplotlib`).
+   - Ensure you have Python 3.10+ and install any dependencies (e.g., `numpy`, `matplotlib`). 
+   - you can run `pip install -r requirements.txt`
 
 2. **Run**  
-   - Call your main function (e.g., `run_simulation()`) that initializes, runs the simulation, and returns an `AnalyticsData` object.
+   - Call main function (e.g., `run_simulation()`) in `simulation.py` that initializes, runs the simulation, and returns an `AnalyticsData` object.
 
 3. **Analyze**  
    - Possibly repeat with multiple seeds to get multiple `AnalyticsData` objects.
