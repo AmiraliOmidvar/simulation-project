@@ -271,10 +271,10 @@ class SimulationLogger:
                     writer = csv.DictWriter(csv_file, fieldnames=self.trace_fieldnames)
                     for row in self.trace_buffer:
                         writer.writerow(row)
-                print(
-                    Fore.YELLOW + f"Flushed {len(self.trace_buffer)} trace rows"
-                    + Style.RESET_ALL
-                )
+                # print(
+                #     Fore.YELLOW + f"Flushed {len(self.trace_buffer)} trace rows"
+                #     + Style.RESET_ALL
+                # )
                 self.trace_buffer.clear()
             except Exception as e:
                 print(Fore.RED + f"Error flushing trace: {e}" + Style.RESET_ALL)

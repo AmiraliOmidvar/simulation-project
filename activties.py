@@ -16,7 +16,7 @@ generator = Generator()
 # Administrative work duration for urgent patients (constant time of 10 units)
 ADMIN_WORK_URGENT = lambda: 10  # S1
 
-# Administrative work duration for ordinary patients (constant time of 10 units)
+# Admduration for ordinary patients (constant time of 10 units)
 ADMIN_WORK_ORDINARY = lambda: 10  # S2
 
 # Laboratory processing time (uniform distribution between 28 and 32 units)
