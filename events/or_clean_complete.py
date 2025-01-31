@@ -5,7 +5,7 @@ This module defines the OrCleanComplete event, which handles the completion of t
 in the Operating Room (OR) after a patient's surgery. It ensures that the OR bed is freed up and
 assigns the next patient in the OR queue to an available bed by scheduling a MOVE_TO_OR event for them.
 """
-
+from entities.patient import PatientType
 from events.base.base import BaseEvent
 from events.base.types import EventTypes
 
@@ -48,9 +48,23 @@ class OrCleanComplete(BaseEvent):
         if not self.system_state.or_queue.is_empty():
             # Retrieve the next patient from the OR queue
             next_patient = self.system_state.or_queue.pop()
+
             # Schedule a MOVE_TO_OR event for the next patient with an immediate event time
             self.sim_engine.schedule_event(
                 event_type=EventTypes.MOVE_TO_OR,
                 event_time=0,  # Immediate event
                 patient=next_patient
             )
+
+    def _schedule_emergency_departure(self):
+        """
+        Schedules an Emergency Departure event for an urgent patient.
+
+        This method is called when an urgent patient needs to depart the system urgently,
+        bypassing regular procedures.
+        """
+        self.sim_engine.schedule_event(
+            event_type=EventTypes.EMERGENCY_DEPARTURE,
+            event_time=0,  # Immediate departure
+            patient=self.patient
+        )

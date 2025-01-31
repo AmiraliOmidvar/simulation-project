@@ -1,4 +1,4 @@
-from activties import CCU_STAY, GENERAL_STAY
+from activties import CCU_STAY, OR_CLEAN_UP
 from entities.patient import Patient
 from events.base.base import ExitEvent
 from events.base.types import EventTypes
@@ -49,7 +49,7 @@ class CCUDeparture(ExitEvent):
             next_patient = self.system_state.ccu_queue.pop()  # Retrieve the next patient from the queue
             self.system_state.ccu_patients.append(next_patient)  # Assign patient to CCU
             self.system_state.num_occupied_beds_ccu += 1  # Increment occupied CCU beds count
-            self.system_state.num_occupied_beds_or -= 1  # Decrement occupied OR beds count (if applicable)
+            self._schedule_cleanup_complete_event()
 
             # Schedule the next departure event for the patient assigned to the CCU
             self.sim_engine.schedule_event(
@@ -57,3 +57,15 @@ class CCUDeparture(ExitEvent):
                 event_time=CCU_STAY(),  # Generate the time for the next departure using CCU_STAY activity
                 patient=next_patient  # Associate the event with the patient
             )
+
+    def _schedule_cleanup_complete_event(self):
+        """
+        Schedules the cleanup completion event after an operation.
+
+        This event signifies that the cleaning process in the Operating Room (OR) has been completed.
+        """
+        self.sim_engine.schedule_event(
+            event_type=EventTypes.OR_CLEAN_UP_COMPLETE,
+            event_time=OR_CLEAN_UP(),
+            patient=self.patient
+        )

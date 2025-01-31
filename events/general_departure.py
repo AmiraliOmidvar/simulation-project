@@ -1,7 +1,7 @@
+from activties import GENERAL_STAY, OR_CLEAN_UP
 from entities.patient import Patient
 from events.base.base import ExitEvent
 from events.base.types import EventTypes
-from activties import GENERAL_STAY
 
 
 class GeneralDeparture(ExitEvent):
@@ -54,8 +54,7 @@ class GeneralDeparture(ExitEvent):
             self.system_state.num_occupied_beds_general += 1
             next_patient = self.system_state.general_queue.pop()  # Remove the next patient from the queue
 
-            # Decrement the number of occupied OR beds if applicable
-            self.system_state.num_occupied_beds_or -= 1
+            self._schedule_cleanup_complete_event()
 
             # Schedule the next departure event for the patient assigned to the General Ward
             self.sim_engine.schedule_event(
@@ -63,3 +62,15 @@ class GeneralDeparture(ExitEvent):
                 event_time=GENERAL_STAY(),  # Time at which the event should occur
                 patient=next_patient  # Patient associated with the event
             )
+
+    def _schedule_cleanup_complete_event(self):
+        """
+        Schedules the cleanup completion event after an operation.
+
+        This event signifies that the cleaning process in the Operating Room (OR) has been completed.
+        """
+        self.sim_engine.schedule_event(
+            event_type=EventTypes.OR_CLEAN_UP_COMPLETE,
+            event_time=OR_CLEAN_UP(),
+            patient=self.patient
+        )

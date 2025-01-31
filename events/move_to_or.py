@@ -1,5 +1,5 @@
 from activties import OR_COMPLEX, OR_MEDIUM, OR_SIMPLE
-from entities.patient import Patient, PatientType, PatientSurgery
+from entities.patient import Patient, PatientSurgery, PatientType
 from events.base.base import BaseEvent
 from events.base.types import EventTypes
 
