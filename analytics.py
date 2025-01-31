@@ -8,7 +8,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.stats import t
 
-from config import FRAME_LENGTH
+# NEW IMPORT:
+from config import FRAME_LENGTH, SIMULATION_TIME
+
 from entities.patient import Patient
 from system_state import SystemState
 from task_manager import task_queue
@@ -175,6 +177,20 @@ class Analyst:
         }
 
     # -------------------------------------------------------------------------
+    # Helper function to fill frames from 0..(total_frames-1) by carrying forward
+    # the last known value if a frame is missing.
+    # -------------------------------------------------------------------------
+    def _fill_missing_frames(self, frame_dict: Dict[int, float]) -> Dict[int, float]:
+        total_frames = SIMULATION_TIME // FRAME_LENGTH
+        filled_dict = {}
+        last_value = 0.0
+        for f in range(total_frames):
+            value = frame_dict.get(f, last_value)
+            filled_dict[f] = value
+            last_value = value
+        return filled_dict
+
+    # -------------------------------------------------------------------------
     # 1. METRIC-SPECIFIC "FRAME-BROKEN" METHODS
     # -------------------------------------------------------------------------
     def _frame_patient_waits(self) -> List[Dict[int, float]]:
@@ -208,7 +224,9 @@ class Analyst:
                 else:
                     frame_averages[f_index] = 0.0
 
-            all_frame_averages.append(frame_averages)
+            # Fill missing frames using the helper
+            filled_frame_averages = self._fill_missing_frames(frame_averages)
+            all_frame_averages.append(filled_frame_averages)
 
         return all_frame_averages
 
@@ -237,7 +255,9 @@ class Analyst:
                 else:
                     frame_averages[f_index] = 0.0
 
-            all_frame_averages.append(frame_averages)
+            # Fill missing frames using the helper
+            filled_frame_averages = self._fill_missing_frames(frame_averages)
+            all_frame_averages.append(filled_frame_averages)
 
         return all_frame_averages
 
@@ -267,7 +287,9 @@ class Analyst:
                 else:
                     frame_averages[f_index] = 0.0
 
-            all_frame_averages.append(frame_averages)
+            # Fill missing frames using the helper
+            filled_frame_averages = self._fill_missing_frames(frame_averages)
+            all_frame_averages.append(filled_frame_averages)
 
         return all_frame_averages
 
@@ -297,7 +319,9 @@ class Analyst:
                 else:
                     frame_averages[f_index] = 0
 
-            all_frame_averages.append(frame_averages)
+            # Fill missing frames using the helper
+            filled_frame_averages = self._fill_missing_frames(frame_averages)
+            all_frame_averages.append(filled_frame_averages)
 
         return all_frame_averages
 
