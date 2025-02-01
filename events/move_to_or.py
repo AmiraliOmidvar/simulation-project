@@ -49,6 +49,7 @@ class MoveToOr(BaseEvent):
         """
         if self.is_resurgery:
             # Handle the operation for a resurgery patient
+            self.system_state.num_occupied_beds_or -= 1
             self._handle_operation()
         else:
             # Check if the Operating Room (OR) has reached its capacity
@@ -60,6 +61,7 @@ class MoveToOr(BaseEvent):
             # If the patient is ordinary, decrement the count of pre-OR occupied beds
             if self.patient.patient_type == PatientType.ORDINARY:
                 self.system_state.num_occupied_beds_pre_or -= 1
+                self.analytics.pre_or_wait_time[self.patient] = self.system_state.current_time - self.patient.enter_time
 
             # If the patient is urgent, schedule an emergency departure event
             if self.patient.patient_type == PatientType.URGENT:
