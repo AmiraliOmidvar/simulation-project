@@ -10,7 +10,6 @@ from scipy.stats import t
 
 # NEW IMPORT:
 from config import FRAME_LENGTH, SIMULATION_TIME
-
 from entities.patient import Patient
 from system_state import SystemState
 from task_manager import task_queue
@@ -26,8 +25,7 @@ class AnalyticsData:
     - Whether a patient has required resurgery
     - Queue lengths in different sections
     - Occupancy data for various sections
-
-    The data here is then used by the Analyst class to compute statistics.
+    - Pre or wait times for patients
     """
 
     def __init__(self):
@@ -43,6 +41,9 @@ class AnalyticsData:
 
         # For every time step, indicates if a resurgery event occurred
         self.resurgery: Dict[int, bool] = {}
+
+        # For every patient, store their pre or wait time
+        self.pre_or_wait_time: Dict[Patient, float] = {}
 
         # Queue length tracking (time -> queue length)
         self.emergency_queue_length: Dict[int, int] = {}
@@ -152,7 +153,8 @@ class Analyst:
             "lab_occupied": partial(self._frame_section, section_name="lab"),
             "ccu_occupied": partial(self._frame_section, section_name="ccu"),
             "icu_occupied": partial(self._frame_section, section_name="icu"),
-            "pre_or_occupied": partial(self._frame_section, section_name="pre_or")
+            "pre_or_occupied": partial(self._frame_section, section_name="pre_or"),
+            "pre_or_wait": self._frame_pre_or_wait
         }
 
         # For certain metrics, we may decide to ignore the first few frames (burn-in, etc.)
@@ -160,7 +162,7 @@ class Analyst:
         self.metrics_cutoff: Dict[str, int] = {
             "patient_waits": 0,
             "emergency_is_full": 0,
-            "general_queue": 0,
+            "general_queue": 2500,
             "emergency_queue": 0,
             "or_queue": 0,
             "lab_queue": 0,
@@ -173,7 +175,8 @@ class Analyst:
             "lab_occupied": 0,
             "ccu_occupied": 0,
             "icu_occupied": 0,
-            "pre_or_occupied": 0
+            "pre_or_occupied": 1000,
+            "pre_or_wait": 1000
         }
 
     # -------------------------------------------------------------------------
@@ -314,7 +317,7 @@ class Analyst:
             # Compute fraction of True values for each frame
             frame_averages: Dict[int, float] = {}
             for f_index, observations in frames.items():
-                if not len(observations) == 0:
+                if len(observations) != 0:
                     frame_averages[f_index] = observations.count(True) / len(observations)
                 else:
                     frame_averages[f_index] = 0
@@ -324,6 +327,40 @@ class Analyst:
             all_frame_averages.append(filled_frame_averages)
 
         return all_frame_averages
+
+    def _frame_pre_or_wait(self) -> List[Dict[int, float]]:
+        """
+        For each replication, compute the average pre or wait time for each 480-minute frame.
+        Here, the pre or wait time is retrieved from the AnalyticsData.pre_or_wait_time dictionary,
+        and the patient's arrival time (patient.enter_time) determines the frame.
+
+        Returns a list of dicts, where each dict maps {frame_index -> average_pre_or_wait_time}.
+        """
+        all_frame_values = []
+
+        # Loop over each replication's data
+        for data in self.dataset:
+            frames: Dict[int, List[float]] = defaultdict(list)
+
+            # Iterate over each patient and its corresponding pre_or_wait value
+            for patient, pre_or_wait in data.pre_or_wait_time.items():
+                # Use the patient's arrival time to assign the value to a frame
+                frame_index = patient.enter_time // FRAME_LENGTH
+                frames[frame_index].append(pre_or_wait)
+
+            # Compute the average pre or wait time for each frame
+            frame_averages: Dict[int, float] = {}
+            for f_index, wait_times in frames.items():
+                if wait_times:
+                    frame_averages[f_index] = sum(wait_times) / len(wait_times)
+                else:
+                    frame_averages[f_index] = 0.0
+
+            # Fill missing frames with the last observed value
+            filled_frame_averages = self._fill_missing_frames(frame_averages)
+            all_frame_values.append(filled_frame_averages)
+
+        return all_frame_values
 
     # -------------------------------------------------------------------------
     # 2. COMPUTE FRAME-WISE ENSEMBLE (NO FRAME-BY-FRAME CIs)
@@ -415,18 +452,22 @@ class Analyst:
             frame_data: List[Dict[int, float]],
             ensemble_data: Dict[int, float],
             metric_name: str,
-            save_path: str
+            save_path: str,
+            cutoff: int = 0  # New parameter to indicate the cutoff frame
     ):
         """
         Generates a line plot showing:
           - Each replication's values in black with low opacity
           - The ensemble average as a thick black line
+          - A red vertical dashed line at the cutoff (if cutoff != 0)
         Saves the plot to the given path and then closes the plot figure.
 
         :param frame_data: List of dicts, each dict is (frame_index -> value) for a replication.
         :param ensemble_data: A dict (frame_index -> ensemble mean) across replications.
         :param metric_name: The name of the metric being plotted (for labels).
         :param save_path: Path to save the resulting plot image.
+        :param cutoff: The frame index to start considering data (burn-in cutoff). If not 0,
+                       a red vertical dashed line is drawn at this frame.
         """
         # Ensure the directory for saving plots exists
         os.makedirs(os.path.dirname(save_path), exist_ok=True)
@@ -451,6 +492,10 @@ class Analyst:
             linewidth=2,
             label="Ensemble (frame-wise)"
         )
+
+        # If a cutoff is defined (non-zero), add a red vertical dashed line to indicate it
+        if cutoff != 0:
+            plt.axvline(x=cutoff, color="red", linestyle="--", label="Cutoff")
 
         # Labeling axes and title
         plt.xlabel("Frame Index (each = 480 minutes)")
@@ -477,7 +522,7 @@ class Analyst:
           1) For each metric, obtain "frame-broken" data across replications.
           2) Compute the frame-wise ensemble average.
           3) Compute a single overall point estimate + CI across frames.
-          4) Plot each metric's replications + ensemble average.
+          4) Plot each metric's replications + ensemble average (with a red cutoff line if needed).
           5) Save results to a JSON file, including summary statistics.
 
         :param alpha: Significance level (default=0.05) for confidence intervals.
@@ -501,13 +546,14 @@ class Analyst:
                 cutoff=self.metrics_cutoff[metric_name]
             )
 
-            # 4) Plot the data
+            # 4) Plot the data (pass the cutoff to display the red line if needed)
             plot_path = os.path.join(output_plots_dir, f"{metric_name}.png")
             self.plot_frame_data(
                 frame_data=data,
                 ensemble_data=ensemble_data,
                 metric_name=metric_name,
-                save_path=plot_path
+                save_path=plot_path,
+                cutoff=self.metrics_cutoff[metric_name]
             )
 
             # 5) Prepare the dictionary to store in the final JSON
@@ -520,5 +566,5 @@ class Analyst:
         os.makedirs(os.path.dirname(output_json) or ".", exist_ok=True)
         with open(output_json, "w") as f:
             json.dump(results_for_all_metrics, f, indent=2)
-
         print(f"[INFO] Analysis results saved to '{output_json}'")
+        return results_for_all_metrics

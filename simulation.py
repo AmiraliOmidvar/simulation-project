@@ -1,4 +1,9 @@
 import heapq
+import time
+
+from dotenv import load_dotenv
+
+load_dotenv("improved_2.env")
 
 from activties import ORDINARY_INTERARRIVAL, URGENT_INTERARRIVAL
 from analytics import Analyst, AnalyticsData
@@ -39,7 +44,7 @@ class SimulationEngine:
         self.end_time = end_time
         self.event_queue = []
         self.counter = Counters()
-        self.logger = SimulationLogger()
+        # self.logger = SimulationLogger()
 
     def initialize(self):
         """
@@ -97,7 +102,7 @@ class SimulationEngine:
         )
 
         # Push the event onto the priority queue
-        heapq.heappush(self.event_queue, event)
+        heapq.heappush(self.event_queue, (event.time, event))
 
     def run(self):
         """
@@ -114,7 +119,8 @@ class SimulationEngine:
                 break
 
             # Pop the earliest event from the priority queue
-            current_event: BaseEvent = heapq.heappop(self.event_queue)
+            event_tuple: BaseEvent = heapq.heappop(self.event_queue)
+            event_time, current_event = event_tuple[0], event_tuple[1]
 
             # Advance the simulation clock to the time of the current event
             self.system_state.current_time = current_event.time
@@ -126,19 +132,18 @@ class SimulationEngine:
             self.analytics.update(self.system_state)
 
             # Log the event and current state using the SimulationLogger
-            self.logger.trace(
-                event_name=current_event.name,
-                event_time=current_event.time,
-                patient=current_event.patient_id,
-                patient_type=current_event.patient_type,
-                patient_surgery=current_event.patient_surgery,
-                system_state=self.system_state,
-                event_details=None  # Additional details can be added if necessary
-            )
+            # self.logger.trace(
+            #     event_name=current_event.name,
+            #     event_time=current_event.time,
+            #     patient=current_event.patient_id,
+            #     patient_type=current_event.patient_type,
+            #     patient_surgery=current_event.patient_surgery,
+            #     system_state=self.system_state,
+            #     event_details=None  # Additional details can be added if necessary
+            # )
 
         # Perform any final updates to analytics after simulation ends
         self.analytics.end_update(self.system_state)
-
         print("Simulation has finished.")
         print(f"Final system state: {self.system_state}")
 
@@ -163,25 +168,30 @@ def run_simulation():
     return sim.analytics
 
 
-if __name__ == "__main__":
+def run_simulation_for_seed(seed=6543434):
     """
-    Entry point for running the simulation. Executes the simulation for each seed in SEED_LIST,
+    Helper function to reset the Generator with a given seed and run the simulation.
+    Returns the collected simulation data.
+    """
+    print(f"Running simulation with seed {seed}...")
+    Generator.reset(seed)
+    data = run_simulation()
+    return data
+
+
+if __name__ == "__main__":
+    st = time.time()
+    from multiprocessing import Pool
+
+    """
+    Entry point for running the simulation in parallel.
+    Executes the simulation for each seed in SEED_LIST using multiple processes,
     collects analytics data, and performs analysis across all simulation runs.
     """
-    dataset = []
 
-    # Iterate over each seed to ensure reproducibility of simulation runs
-    for i, seed in enumerate(SEED_LIST):
-        print(f"Running simulation with seed {seed} ({i + 1}/{len(SEED_LIST)})...")
-
-        # Reset the generator to the current seed for reproducibility
-        Generator.reset(seed)
-
-        # Run the simulation and collect analytics data
-        data = run_simulation()
-
-        # Append the collected data to the dataset
-        dataset.append(data)
+    # Use a process pool to run simulations for each seed in parallel
+    with Pool(processes=3) as pool:
+        dataset = pool.map(run_simulation_for_seed, SEED_LIST)
 
     # Create an Analyst instance with the collected dataset
     analyst = Analyst(dataset)
@@ -190,3 +200,4 @@ if __name__ == "__main__":
     print("Running analytics on simulation data...")
     analytics_results = analyst.run_analytics()
     print(analytics_results)
+    print(time.time() - st)

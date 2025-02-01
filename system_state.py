@@ -1,3 +1,4 @@
+import os
 from typing import List
 
 from entities.patient import Patient, PatientPriorityQueue
@@ -19,7 +20,8 @@ class SystemState:
 
         lab_queue (PatientPriorityQueue): Priority queue for the lab section, managing patients awaiting lab services.
         emergency_queue (PatientPriorityQueue): Priority queue for the emergency room, managing incoming patients.
-        or_queue (PatientPriorityQueue): Priority queue for the operating room (OR), managing patients scheduled for surgery.
+        or_queue (PatientPriorityQueue): Priority queue for the operating room (OR), managing patients scheduled for
+        surgery.
 
         ccu_queue (Queue): Queue for the Coronary Care Unit (CCU), managing patients awaiting CCU beds.
         icu_queue (Queue): Queue for the Intensive Care Unit (ICU), managing patients awaiting ICU beds.
@@ -84,15 +86,15 @@ class SystemState:
         # Power status: 1 = power on, 0 = power off
         self.power_status = 1
 
-        # Define maximum capacities for each section
-        self.CAPACITY_ER = 10  # Maximum ER beds
-        self.CAPACITY_PRE_OR = 25  # Maximum Pre-operation beds
-        self.CAPACITY_OR = 50  # Maximum Operating Room beds
-        self.CAPACITY_GENERAL = 40  # Maximum General Ward beds
-        self.CAPACITY_LAB = 3  # Maximum Lab beds
-        self.CAPACITY_ICU = 10  # Maximum ICU beds
-        self.CAPACITY_CCU = 5  # Maximum CCU beds
-        self.CAPACITY_AMBULANCE = 10  # Maximum Ambulance beds
+        # Define maximum capacities for each section from environment variables
+        self.CAPACITY_ER = int(os.getenv('CAPACITY_ER'))  # Maximum ER beds
+        self.CAPACITY_PRE_OR = int(os.getenv('CAPACITY_PRE_OR'))  # Maximum Pre-operation beds
+        self.CAPACITY_OR = int(os.getenv('CAPACITY_OR'))  # Maximum Operating Room beds
+        self.CAPACITY_GENERAL = int(os.getenv('CAPACITY_GENERAL'))  # Maximum General Ward beds
+        self.CAPACITY_LAB = int(os.getenv('CAPACITY_LAB'))  # Maximum Lab beds
+        self.CAPACITY_ICU = int(os.getenv('CAPACITY_ICU'))  # Maximum ICU beds
+        self.CAPACITY_CCU = int(os.getenv('CAPACITY_CCU'))  # Maximum CCU beds
+        self.CAPACITY_AMBULANCE = int(os.getenv('CAPACITY_AMBULANCE'))  # Maximum Ambulance beds
 
 
 class NumOccupied:
